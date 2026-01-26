@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "drk-core",
+    "drk-cli",
+    "plugins/*"
+]
+resolver = "2"

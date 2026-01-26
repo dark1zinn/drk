@@ -1,0 +1,9 @@
+[package]
+name = "drk-basic"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+drk-core = { path = "../../drk-core" }
+clap = "4.4"
+anyhow = "1.0"
