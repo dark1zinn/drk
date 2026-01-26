@@ -52,7 +52,7 @@
       devShells = forEachSupportedSystem (
         { pkgs }:
         {
-          default = pkgs.mkShellNoCC {
+          default = pkgs.mkShell {
             packages = with pkgs; [
               rustToolchain
               openssl
@@ -66,7 +66,6 @@
             env = {
               # Required by rust-analyzer
               RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
-              RUST_LOG = "info";
             };
           };
         }
