@@ -3,6 +3,21 @@ use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
 
+pub mod styling;
+
+pub use styling::{
+    style_primary,
+    style_warning,
+    style_success,
+    style_error,
+    style_dim,
+    icon_error,
+    icon_info,
+    icon_success,
+    icon_warning,
+    // TODO: icon_question,
+};
+
 // --- 1. COMMAND SCHEMA SYSTEM ---
 // A serializable representation of a CLI command that can cross FFI boundaries.
 
