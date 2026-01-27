@@ -2,6 +2,7 @@
 members = [
     "drk-core",
     "drk-cli",
+    "drk-api",
     "plugins/*"
 ]
 resolver = "2"
