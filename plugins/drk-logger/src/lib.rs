@@ -1,4 +1,4 @@
-use drk_api::{Plugin, PluginMetadata, SystemEvent, Context, declare_plugin};
+use drk_api::{declare_plugin, Context, Plugin, PluginMetadata, SystemEvent};
 
 struct LoggerPlugin;
 
@@ -17,10 +17,24 @@ impl Plugin for LoggerPlugin {
         match event {
             SystemEvent::Startup => println!("[Logger] System is starting up..."),
             SystemEvent::PreCommand { name, .. } => println!("[Logger] About to run: {}", name),
+            SystemEvent::PostCommand { name, success } => {
+                println!(
+                    "[Logger] Command '{}' completed with success={}",
+                    name, success
+                );
+            }
+            SystemEvent::ExecuteCommand {
+                plugin_name,
+                matches,
+            } => {
+                println!(
+                    "[Logger] Executing command '{}' from plugin '{}'",
+                    matches.command_name, plugin_name
+                );
+            }
             SystemEvent::Custom { source, event, .. } => {
                 println!("[Logger] Intercepted event '{}' from '{}'", event, source);
             }
-            _ => {}
         }
         Ok(())
     }

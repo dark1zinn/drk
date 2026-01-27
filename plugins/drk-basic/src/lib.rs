@@ -1,5 +1,8 @@
-use drk_api::{declare_plugin, Context, Plugin, PluginMetadata, SystemEvent};
 use anyhow::Result;
+use drk_api::{
+    declare_plugin, ArgType, CommandArg, CommandMatches, Context, Plugin, PluginCommand,
+    PluginMetadata, SystemEvent,
+};
 
 // 1. Define the Plugin Struct
 struct BasicPlugin;
@@ -11,9 +14,36 @@ impl Plugin for BasicPlugin {
             name: "basic".to_string(),
             version: "0.1.0".to_string(),
             author: "You".to_string(),
-            description: "A basic plugin that greets".to_string(),
+            description: "A basic plugin with greet and echo commands".to_string(),
             essential: false,
         }
+    }
+
+    fn get_commands(&self) -> Vec<PluginCommand> {
+        vec![
+            // Greet command
+            PluginCommand {
+                name: "greet".to_string(),
+                description: "Greet someone by name".to_string(),
+                args: vec![CommandArg {
+                    name: "name".to_string(),
+                    description: "The name to greet".to_string(),
+                    required: false,
+                    arg_type: ArgType::String,
+                }],
+            },
+            // Echo command
+            PluginCommand {
+                name: "echo".to_string(),
+                description: "Echo back a message".to_string(),
+                args: vec![CommandArg {
+                    name: "message".to_string(),
+                    description: "The message to echo".to_string(),
+                    required: true,
+                    arg_type: ArgType::String,
+                }],
+            },
+        ]
     }
 
     fn on_load(&mut self) -> Result<()> {
@@ -28,34 +58,67 @@ impl Plugin for BasicPlugin {
                 println!("[BasicPlugin] I see the app is starting.");
             }
 
-            // Hook into command execution
-            // NOTE: Since we haven't built the Schema yet, the CLI doesn't technically
-            // know "greet" is a valid command. We are checking the raw args here 
-            // as a temporary integration test.
-            SystemEvent::PreCommand { name, args } => {
-                if name == "greet" {
-                    let user_name = args.first().map(|s| s.as_str()).unwrap_or("World");
-                    
-                    // Access config safely
-                    let mut prefix = "Hello".to_string();
-                    if let Some(cfg) = ctx.config.get("basic") {
-                        if let Some(val) = cfg.get("greeting_prefix") {
-                             prefix = val.as_str().unwrap_or("Hello").to_string();
-                        }
-                    }
-
-                    println!("{} {}!", prefix, user_name);
-
-                    // We can also fire a custom event back to the system
-                    (ctx.event_sender)(SystemEvent::Custom { 
-                        source: "basic".into(), 
-                        event: "greeted".into(), 
-                        payload: None 
-                    });
+            // Handle command execution
+            SystemEvent::ExecuteCommand {
+                plugin_name,
+                matches,
+            } => {
+                // Only handle commands meant for this plugin
+                if plugin_name == "basic" {
+                    self.execute_command(matches, ctx)?;
                 }
             }
 
+            // Legacy hook for PreCommand (for backward compatibility)
+            SystemEvent::PreCommand { name, .. } => {
+                println!("[BasicPlugin] PreCommand hook: {}", name);
+            }
+
             _ => {}
+        }
+        Ok(())
+    }
+}
+
+impl BasicPlugin {
+    fn execute_command(&self, matches: &CommandMatches, ctx: &mut Context) -> Result<()> {
+        match matches.command_name.as_str() {
+            "greet" => {
+                let name = matches
+                    .args
+                    .get("name")
+                    .map(|s| s.as_str())
+                    .unwrap_or("World");
+
+                // Access config safely for greeting prefix
+                let mut prefix = "Hello".to_string();
+                if let Some(cfg) = ctx.config.get("basic") {
+                    if let Some(val) = cfg.get("greeting_prefix") {
+                        prefix = val.as_str().unwrap_or("Hello").to_string();
+                    }
+                }
+
+                println!("{} {}!", prefix, name);
+
+                // Fire a custom event back to the system
+                (ctx.event_sender)(SystemEvent::Custom {
+                    source: "basic".into(),
+                    event: "greeted".into(),
+                    payload: None,
+                });
+            }
+
+            "echo" => {
+                if let Some(message) = matches.args.get("message") {
+                    println!("{}", message);
+                } else {
+                    eprintln!("Error: message argument is required");
+                }
+            }
+
+            _ => {
+                eprintln!("Unknown command: {}", matches.command_name);
+            }
         }
         Ok(())
     }
