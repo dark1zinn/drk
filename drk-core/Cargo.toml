@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "4.4", features = ["derive"] }
+drk-api = { path = "../drk-api" }
+libloading = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
 anyhow = "1.0"
-downcast-rs = "1.2"
+walkdir = "2.3" # To scan folders
