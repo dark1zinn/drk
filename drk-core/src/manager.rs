@@ -1,14 +1,14 @@
-use drk_api::{Context, Plugin, PluginMetadata, SystemEvent};
+use anyhow::{Context as _, Result};
+use drk_api::{Context, Plugin, PluginCommand, PluginMetadata, SystemEvent};
 use libloading::{Library, Symbol};
 use std::collections::HashMap;
 use std::path::Path;
-use anyhow::{Context as _, Result};
 
 /// A wrapper around a dynamically loaded plugin.
-/// 
-/// SAFETY: The `_lib` field MUST be dropped AFTER `instance`. 
-/// Rust drops fields in declaration order (top to bottom), so `instance` 
-/// is dropped first, then `_lib`. This prevents use-after-free segfaults 
+///
+/// SAFETY: The `_lib` field MUST be dropped AFTER `instance`.
+/// Rust drops fields in declaration order (top to bottom), so `instance`
+/// is dropped first, then `_lib`. This prevents use-after-free segfaults
 /// where the code is unloaded from memory before the object is destroyed.
 struct LoadedPlugin {
     instance: Box<dyn Plugin>,
@@ -40,16 +40,19 @@ impl PluginManager {
             return Ok(());
         }
 
-        for entry in walkdir::WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+        for entry in walkdir::WalkDir::new(path)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             let p = entry.path();
             // Check for library extensions based on OS
-            let is_lib = p.extension().map_or(false, |ext| {
-                ext == "dll" || ext == "so" || ext == "dylib"
-            });
+            let is_lib = p
+                .extension()
+                .map_or(false, |ext| ext == "dll" || ext == "so" || ext == "dylib");
 
             if is_lib {
                 // We use unsafe here because loading arbitrary DLLs is inherently unsafe
-                unsafe { 
+                unsafe {
                     if let Err(e) = self.load_plugin(p) {
                         eprintln!("Failed to load plugin at {:?}: {}", p, e);
                     }
@@ -62,19 +65,19 @@ impl PluginManager {
     /// Loads a single plugin from a path
     unsafe fn load_plugin(&mut self, path: &Path) -> Result<()> {
         // 1. Load the library into memory
-        let lib = Library::new(path)
-            .with_context(|| format!("Could not open library at {:?}", path))?;
+        let lib =
+            Library::new(path).with_context(|| format!("Could not open library at {:?}", path))?;
 
         // 2. Find the entry point symbol
         // This signature MUST match the `_plugin_create` function in `drk-api` macro
-        let func: Symbol<unsafe extern "C" fn() -> *mut dyn Plugin> = 
-            lib.get(b"_plugin_create")
+        let func: Symbol<unsafe extern "C" fn() -> *mut dyn Plugin> = lib
+            .get(b"_plugin_create")
             .context("Could not find '_plugin_create' symbol. Is this a valid drk plugin?")?;
 
         // 3. Invoke the creator to get the pointer
         let raw_ptr = func();
-        
-        // 4. Convert raw pointer back to Box. 
+
+        // 4. Convert raw pointer back to Box.
         // We now own this memory.
         let mut instance = Box::from_raw(raw_ptr);
 
@@ -90,16 +93,19 @@ impl PluginManager {
             instance.on_load()?;
         }
 
-        // 8. Store everything. 
+        // 8. Store everything.
         // IMPORTANT: Move `lib` into the struct so it stays alive.
         let loaded = LoadedPlugin {
             instance,
-            _lib: lib, 
+            _lib: lib,
             metadata: metadata.clone(),
             enabled,
         };
 
-        println!("Loaded Plugin: {} (v{}) [Enabled: {}]", name, metadata.version, enabled);
+        println!(
+            "Loaded Plugin: {} (v{}) [Enabled: {}]",
+            name, metadata.version, enabled
+        );
         self.plugins.insert(name, loaded);
 
         Ok(())
@@ -111,23 +117,40 @@ impl PluginManager {
         }
         // Check our in-memory config store
         if let Some(cfg) = self.config_store.get(name) {
-             if let Some(val) = cfg.get("enabled") {
-                 return val.as_bool().unwrap_or(true);
-             }
+            if let Some(val) = cfg.get("enabled") {
+                return val.as_bool().unwrap_or(true);
+            }
         }
         true
+    }
+
+    /// Returns all commands from all loaded and enabled plugins
+    /// Returns a HashMap of plugin_name -> Vec<PluginCommand>
+    pub fn get_all_plugin_commands(&self) -> HashMap<String, Vec<PluginCommand>> {
+        let mut result = HashMap::new();
+
+        for (name, plugin) in &self.plugins {
+            if plugin.enabled {
+                let commands = plugin.instance.get_commands();
+                if !commands.is_empty() {
+                    result.insert(name.clone(), commands);
+                }
+            }
+        }
+
+        result
     }
 
     /// The Central Event Bus Dispatcher
     /// This replaces the old `EventBus` struct.
     pub fn fire_event(&mut self, event: SystemEvent) {
         // We collect keys first to avoid borrowing `self.plugins` while iterating mutably
-        // (Though since we have ownership of the manager here, we can just iterate if careful, 
+        // (Though since we have ownership of the manager here, we can just iterate if careful,
         // but collecting keys is often safer if plugins try to modify the manager later).
-        
-        // For this implementation, simple iteration is fine because `handle_event` 
+
+        // For this implementation, simple iteration is fine because `handle_event`
         // takes `&mut Context`, not `&mut PluginManager`.
-        
+
         for (name, plugin) in &mut self.plugins {
             if !plugin.enabled {
                 continue;
@@ -138,9 +161,12 @@ impl PluginManager {
             let mut ctx = Context {
                 config: &mut self.config_store,
                 event_sender: &mut |_evt| {
-                    // TODO: In a real system, you push this event to a queue 
+                    // TODO: In a real system, you push this event to a queue
                     // and process it after the current loop finishes to avoid recursion depth issues.
-                    println!("Plugin {} tried to emit an event (nested events not yet implemented)", name);
+                    println!(
+                        "Plugin {} tried to emit an event (nested events not yet implemented)",
+                        name
+                    );
                 },
             };
 

@@ -1,9 +1,47 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::any::Any;
+use std::collections::HashMap;
 
-// --- 1. TYPE-SAFE EVENT SYSTEM ---
+// --- 1. COMMAND SCHEMA SYSTEM ---
+// A serializable representation of a CLI command that can cross FFI boundaries.
+
+/// Represents an argument for a command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandArg {
+    pub name: String,
+    pub description: String,
+    pub required: bool,
+    pub arg_type: ArgType,
+}
+
+/// The type of argument
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ArgType {
+    String,
+    Integer,
+    Float,
+    Boolean,
+    /// A positional argument
+    Positional,
+}
+
+/// Represents a command that a plugin can handle
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginCommand {
+    pub name: String,
+    pub description: String,
+    pub args: Vec<CommandArg>,
+}
+
+/// Parsed arguments from a command execution
+#[derive(Debug, Clone)]
+pub struct CommandMatches {
+    pub command_name: String,
+    pub args: HashMap<String, String>,
+}
+
+// --- 2. TYPE-SAFE EVENT SYSTEM ---
 // Instead of just Strings, we use an Enum to strictly define Core events.
 // Plugins can use `Custom` to pass data, but they should document their data payload.
 
@@ -15,16 +53,21 @@ pub enum SystemEvent {
     PreCommand { name: String, args: Vec<String> },
     /// Fired after a command runs.
     PostCommand { name: String, success: bool },
+    /// Fired when a command should be executed by its owning plugin.
+    ExecuteCommand {
+        plugin_name: String,
+        matches: CommandMatches,
+    },
     /// A custom hook from another plugin.
     /// Plugins should document: "I fire 'http:request' with payload 'HttpRequest'"
-    Custom { 
-        source: String, 
-        event: String, 
-        payload: Option<std::sync::Arc<dyn Any + Send + Sync>> 
+    Custom {
+        source: String,
+        event: String,
+        payload: Option<std::sync::Arc<dyn Any + Send + Sync>>,
     },
 }
 
-// --- 2. PLUGIN METADATA ---
+// --- 3. PLUGIN METADATA ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginMetadata {
     pub name: String,
@@ -32,10 +75,10 @@ pub struct PluginMetadata {
     pub author: String,
     pub description: String,
     /// Is this plugin critical? If true, it cannot be disabled.
-    pub essential: bool, 
+    pub essential: bool,
 }
 
-// --- 3. CONTEXT ---
+// --- 4. CONTEXT ---
 // Passed to every plugin function.
 pub struct Context<'a> {
     // We hide the config map behind a safe accessor to prevent conflicts
@@ -44,20 +87,30 @@ pub struct Context<'a> {
     pub event_sender: &'a mut dyn FnMut(SystemEvent),
 }
 
-// --- 4. THE PLUGIN TRAIT ---
+// --- 5. THE PLUGIN TRAIT ---
 // All dynamic plugins must implement this.
 pub trait Plugin: Send + Sync {
     fn metadata(&self) -> PluginMetadata;
 
-    fn on_load(&mut self) -> Result<()> { Ok(()) }
-    
-    fn on_unload(&mut self) -> Result<()> { Ok(()) }
+    /// Returns the commands this plugin provides.
+    /// This is called during CLI initialization to build the command tree.
+    fn get_commands(&self) -> Vec<PluginCommand> {
+        Vec::new()
+    }
+
+    fn on_load(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    fn on_unload(&mut self) -> Result<()> {
+        Ok(())
+    }
 
     // The handler now takes the strict SystemEvent enum
     fn handle_event(&mut self, event: &SystemEvent, ctx: &mut Context) -> Result<()>;
 }
 
-// --- 5. FFI MACRO ---
+// --- 6. FFI MACRO ---
 // Plugins will use this macro to export themselves safely.
 #[macro_export]
 macro_rules! declare_plugin {
