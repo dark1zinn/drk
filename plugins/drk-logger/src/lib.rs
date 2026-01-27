@@ -1,4 +1,4 @@
-use drk_api::{declare_plugin, Context, Plugin, PluginMetadata, SystemEvent};
+use drk_api::{Context, Plugin, PluginMetadata, SystemEvent, declare_plugin, style_dim, style_primary, style_success, style_warning};
 
 struct LoggerPlugin;
 
@@ -15,25 +15,39 @@ impl Plugin for LoggerPlugin {
 
     fn handle_event(&mut self, event: &SystemEvent, _ctx: &mut Context) -> anyhow::Result<()> {
         match event {
-            SystemEvent::Startup => println!("[Logger] System is starting up..."),
-            SystemEvent::PreCommand { name, .. } => println!("[Logger] About to run: {}", name),
+            SystemEvent::Startup => println!("{} System is starting up...", style_dim("[Logger]")),
+            SystemEvent::PreCommand { name, .. } => println!("{} About to run: {}", style_dim("[Logger]"), style_primary(name)),
             SystemEvent::PostCommand { name, success } => {
-                println!(
-                    "[Logger] Command '{}' completed with success={}",
-                    name, success
-                );
+                let status = if *success {
+                                    style_success("success")
+                                } else {
+                                    style_warning("failed")
+                                };
+                                println!(
+                                    "{} Command '{}' completed with status: {}",
+                                    style_dim("[Logger]"),
+                                    style_primary(name),
+                                    status
+                                );
             }
             SystemEvent::ExecuteCommand {
                 plugin_name,
                 matches,
             } => {
                 println!(
-                    "[Logger] Executing command '{}' from plugin '{}'",
-                    matches.command_name, plugin_name
-                );
+                                    "{} Executing command '{}' from plugin '{}'",
+                                    style_dim("[Logger]"),
+                                    style_primary(&matches.command_name),
+                                    style_warning(plugin_name)
+                                );
             }
             SystemEvent::Custom { source, event, .. } => {
-                println!("[Logger] Intercepted event '{}' from '{}'", event, source);
+                println!(
+                                    "{} Intercepted event '{}' from '{}'",
+                                    style_dim("[Logger]"),
+                                    style_primary(event),
+                                    style_warning(source)
+                                );
             }
         }
         Ok(())
