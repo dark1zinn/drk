@@ -3,7 +3,11 @@ name = "drk-basic"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib"] # Essential: This creates the .so/.dll file
+
 [dependencies]
-drk-core = { path = "../../drk-core" }
-clap = "4.4"
+drk-api = { path = "../../drk-api" }
 anyhow = "1.0"
+# We temporarily remove clap here because we haven't implemented the 
+# Schema system yet, so we can't safely return clap structs over FFI.
