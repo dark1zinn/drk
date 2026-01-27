@@ -101,7 +101,63 @@ We will implement a **Command Schema**:
 
 ---
 
-### Progress Tracking
+## 6. UI & UX Consistency Layer (New Roadmap Entries)
+
+### [ ] Feature: Standardized Terminal Styling (`console`)
+
+**Implementation:**
+
+* **Where:** Re-export from `drk-api`.
+* **Logic:** Use the `console` crate to provide a global "Style" guide. This allows us to handle `NO_COLOR` environment variables in one place.
+* **API Exposure:** 
+```rust
+// In drk-api/src/lib.rs
+pub use console;
+pub fn style_primary(text: &str) -> console::StyledObject<&str> {
+console::style(text).cyan().bold()
+}
+```
+
+
+* **Benefit:** If we ever want to change the "drk theme," we change it in `drk-api`, and every plugin updates its look automatically upon its next compile.
+
+### [ ] Feature: Unified Progress Reporting (`indicatif`)
+
+**Implementation:**
+
+* **Where:** `drk-api` defines a `ProgressContext` passed through `SystemEvent`.
+* **Logic:** Instead of plugins creating their own progress bars (which can mess up the terminal if multiple plugins do it), plugins should request a bar from the `drk-core` via the `EventBus`.
+* **Flow:**
+1. Plugin sends `SystemEvent::RequestProgressBar`.
+2. `drk-core` initializes an `indicatif::MultiProgress` and returns a handle.
+
+
+* **Benefit:** Prevents "flickering" or overlapping progress bars when multiple background tasks occur.
+
+### [ ] Feature: Diagnostic Error Reporting (`miette`)
+
+**Implementation:**
+
+* **Where:** Integrated into the `Result` type of the `Plugin` trait.
+* **Logic:** Change the `Plugin` trait methods to return `miette::Result<T>`.
+* **Formatting:**
+```rust
+#[derive(Debug, miette::Diagnostic, thiserror::Error)]
+#[error("Plugin Config Error")]
+pub struct PluginError {
+    #[help]
+    pub advice: String,
+    // miette will render this with beautiful arrows and colors
+}
+
+```
+
+
+* **Benefit:** When a plugin fails, the user gets a "compiler-grade" error report with specific advice, rather than a generic "Plugin failed" message.
+
+---
+
+## 7. Updated Progress Tracking
 
 * [x] Define Workspace and Crate structure.
 * [x] Implement FFI Plugin loading logic (`libloading`).
@@ -109,3 +165,14 @@ We will implement a **Command Schema**:
 * [x] Implement Plugin Toggling and Metadata.
 * [x] Update `drk-basic` to Dynamic Library format.
 * [x] Implement `CommandSchema` for dynamic CLI argument parsing.
+* [ ] **Next:** Re-export `console` in `drk-api` for UI consistency.
+* [ ] **Next:** Integrate `indicatif` into `PluginManager` for managed progress bars.
+* [ ] **Next:** Migrate `anyhow` to `miette` for advanced diagnostics.
+
+---
+
+### Implementation Note: `console` vs `colored`
+
+I've chosen `console` for this roadmap because it is specifically designed to handle **terminal detection** (knowing if it's a pipe, a file, or a real terminal) better than `colored`. This is vital for a CLI tool that might be used in CI/CD pipelines where you don't want ANSI escape codes cluttering up log files.
+
+**Would you like to start the code implementation for the `CommandSchema` now, or should we first set up the UI/Error crates in `drk-api`?**
