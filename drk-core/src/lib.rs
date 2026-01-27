@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Command;
 use downcast_rs::{impl_downcast, Downcast};
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 
 // --- METADATA ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,7 +26,9 @@ pub struct EventBus {
 
 impl EventBus {
     pub fn new() -> Self {
-        Self { listeners: HashMap::new() }
+        Self {
+            listeners: HashMap::new(),
+        }
     }
 
     pub fn subscribe<F>(&mut self, event_name: &str, handler: F)
@@ -89,7 +91,7 @@ pub trait Plugin: Downcast + Send + Sync {
         &self,
         _command_name: &str,
         _args: &clap::ArgMatches,
-        _ctx: &mut Context
+        _ctx: &mut Context,
     ) -> Result<()> {
         Ok(())
     }

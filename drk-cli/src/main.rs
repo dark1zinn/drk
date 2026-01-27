@@ -1,6 +1,6 @@
 use anyhow::{Context as _, Result};
-use clap::{Command, ArgMatches};
-use drk_core::{Context, EventBus, Plugin, ConfigMap};
+use clap::Command;
+use drk_core::{ConfigMap, Context, EventBus, Plugin};
 use std::fs;
 use std::path::PathBuf;
 
@@ -63,7 +63,8 @@ fn main() -> Result<()> {
         .subcommand_required(true);
 
     // Map subcommand names to plugin indices
-    let mut command_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut command_map: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
 
     for (index, plugin) in plugins.iter().enumerate() {
         if let Some(cmd) = plugin.get_command() {
@@ -83,10 +84,10 @@ fn main() -> Result<()> {
 
     if let Some(&idx) = command_map.get(sub_name) {
         let plugin = &plugins[idx];
-        
+
         // Execute plugin logic
         plugin.handle_command(sub_name, sub_matches, &mut ctx)?;
-        
+
         // Save config if modified by plugins
         save_config(&config_path, ctx.config)?;
     }
