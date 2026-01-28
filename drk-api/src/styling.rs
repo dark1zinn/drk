@@ -1,14 +1,14 @@
 //! Terminal Styling Utilities
-//! 
+//!
 //! This module provides consistent styling functions for the drk CLI.
 //! All styling goes through here to ensure visual consistency.
 
 pub use console;
 
-use console::{Style, style};
+use console::{style, Style};
 
 /// Style for primary/important text (cyan, bold)
-/// 
+///
 /// # Example
 /// ```
 /// let text = style_primary("Hello");
@@ -39,7 +39,7 @@ pub fn style_dim(text: &str) -> console::StyledObject<&str> {
 }
 
 /// Create a custom style
-/// 
+///
 /// # Example
 /// ```
 /// let my_style = create_style().magenta().italic();
@@ -53,16 +53,16 @@ pub fn create_style() -> Style {
 /// Cross-platform checkmark icon
 pub fn icon_success() -> &'static str {
     if console::Term::stdout().features().is_attended() {
-        "✓"  // Unicode checkmark
+        "✓" // Unicode checkmark
     } else {
-        "[OK]"  // Fallback for non-terminal output
+        "[OK]" // Fallback for non-terminal output
     }
 }
 
 /// Cross-platform error icon  
 pub fn icon_error() -> &'static str {
     if console::Term::stdout().features().is_attended() {
-        "✗"  // Unicode X
+        "✗" // Unicode X
     } else {
         "[ERROR]"
     }
@@ -71,7 +71,7 @@ pub fn icon_error() -> &'static str {
 /// Cross-platform warning icon
 pub fn icon_warning() -> &'static str {
     if console::Term::stdout().features().is_attended() {
-        "⚠"  // Unicode warning
+        "⚠" // Unicode warning
     } else {
         "[WARN]"
     }
@@ -80,7 +80,7 @@ pub fn icon_warning() -> &'static str {
 /// Cross-platform info icon
 pub fn icon_info() -> &'static str {
     if console::Term::stdout().features().is_attended() {
-        "ℹ"  // Unicode info
+        "ℹ" // Unicode info
     } else {
         "[INFO]"
     }

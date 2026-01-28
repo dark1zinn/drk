@@ -1,8 +1,8 @@
 use anyhow::Result;
 use drk_api::{
-    declare_plugin, ArgType, CommandArg, CommandMatches, Context, Plugin, PluginCommand,
-    PluginMetadata, SystemEvent,
-    style_primary, style_success, icon_success, icon_info, icon_error, style_error
+    declare_plugin, icon_error, icon_info, icon_success, style_error, style_primary, style_success,
+    ArgType, CommandArg, CommandMatches, Context, Plugin, PluginCommand, PluginMetadata,
+    SystemEvent,
 };
 
 // 1. Define the Plugin Struct
@@ -99,7 +99,13 @@ impl BasicPlugin {
                     }
                 }
 
-                println!("{} {} {}{}", style_success(icon_success()), style_success(&prefix), style_primary(name), style_success("!"));
+                println!(
+                    "{} {} {}{}",
+                    style_success(icon_success()),
+                    style_success(&prefix),
+                    style_primary(name),
+                    style_success("!")
+                );
 
                 // Fire a custom event back to the system
                 (ctx.event_sender)(SystemEvent::Custom {
@@ -111,14 +117,28 @@ impl BasicPlugin {
 
             "echo" => {
                 if let Some(message) = matches.args.get("message") {
-                    println!("{} {}{}", style_success(icon_info()), style_primary(message), style_success("!"));
+                    println!(
+                        "{} {}{}",
+                        style_success(icon_info()),
+                        style_primary(message),
+                        style_success("!")
+                    );
                 } else {
-                    eprintln!("{}: {}", style_error(icon_error()), style_error("message argument is required!"));
+                    eprintln!(
+                        "{}: {}",
+                        style_error(icon_error()),
+                        style_error("message argument is required!")
+                    );
                 }
             }
 
             _ => {
-                eprintln!("{} {} {}", style_error(icon_error()), style_error("Unknown command:"), style_primary(&matches.command_name));
+                eprintln!(
+                    "{} {} {}",
+                    style_error(icon_error()),
+                    style_error("Unknown command:"),
+                    style_primary(&matches.command_name)
+                );
             }
         }
         Ok(())

@@ -6,16 +6,16 @@ use std::collections::HashMap;
 pub mod styling;
 
 pub use styling::{
-    style_primary,
-    style_warning,
-    style_success,
-    style_error,
-    style_dim,
     icon_error,
     icon_info,
     icon_success,
     icon_warning,
     // TODO: icon_question,
+    style_dim,
+    style_error,
+    style_primary,
+    style_success,
+    style_warning,
 };
 
 // --- 1. COMMAND SCHEMA SYSTEM ---
