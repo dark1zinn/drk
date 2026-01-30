@@ -68,7 +68,7 @@ impl NixPlugin {
     ) -> anyhow::Result<()> {
         match matches.command_name.as_str() {
             "nix" => {
-                let template = matches.args.get("t").map(|s| s.as_str()).unwrap_or("empty");
+                let template = matches.args.get("template").map(|s| s.as_str()).unwrap_or("empty");
                 println!(
                     "{} Initializing nix flake dev environment template: {}",
                     style_warning(icon_info()),
