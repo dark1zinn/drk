@@ -1,0 +1,11 @@
+[package]
+name = "drk-nix"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"] # Important: This makes it a compiled dynamic library
+
+[dependencies]
+drk-api = { path = "../../drk-api" }
+anyhow = "1.0"
