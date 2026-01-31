@@ -1,10 +1,21 @@
 use drk_api::{
-    declare_plugin, icon_info, icon_warning, style_primary,
-    style_warning, ArgType, CommandArg, CommandMatches, Context, Plugin, PluginCommand,
-    PluginMetadata, SystemEvent,
+    ArgType, CommandArg, CommandMatches, Context, Plugin, PluginCommand, PluginMetadata, SystemEvent, declare_plugin, icon_error, icon_info, icon_warning, style_error, style_primary, style_warning
 };
+use serde::Deserialize;
 
 struct NixPlugin;
+
+#[derive(Debug, Deserialize, PartialEq)]
+struct Template {
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubItem {
+    name: String,
+    #[serde(rename = "type")]
+    item_type: String,
+}
 
 impl Plugin for NixPlugin {
     fn metadata(&self) -> PluginMetadata {
@@ -63,16 +74,28 @@ impl NixPlugin {
     fn execute_command(
         &mut self,
         matches: &CommandMatches,
-        #[allow(unused_variables)]
-        ctx: &mut Context,
+        #[allow(unused_variables)] ctx: &mut Context,
     ) -> anyhow::Result<()> {
         match matches.command_name.as_str() {
             "nix" => {
-                let template = matches.args.get("template").map(|s| s.as_str()).unwrap_or("empty");
+                let template: Template = matches
+                    .args
+                    .get("template")
+                    .map(|s| Template { name: s.to_string() })
+                    .unwrap_or(Template { name: "empty".to_string() });
+                
+                let gh_templates = self.fetch_gh_templates()?;
+                
+                if !gh_templates.contains(&template) {
+                    println!("{} {}", style_warning(icon_warning()), style_warning("Template not found!"));
+                    println!("{} {}", style_primary(icon_info()), style_primary("You may wanne check out the available templates at https://github.com/the-nix-way/dev-templates"));
+                    return Ok(())
+                }
+                
                 println!(
                     "{} Initializing nix flake dev environment template: {}",
                     style_warning(icon_info()),
-                    style_primary(&template)
+                    style_primary(&template.name)
                 );
             }
             _ => println!(
@@ -82,6 +105,40 @@ impl NixPlugin {
             ),
         }
         Ok(())
+    }
+
+    /// Fetches the list of directories from a GitHub repository
+    /// # Returns
+    /// * `Result<Vec<Template>, anyhow::Error>` - List of directory names or error
+    fn fetch_gh_templates(&self) -> Result<Vec<Template>, anyhow::Error> {
+        // GH api URL pointing to flake templates provided by the-nix-way/dev-templates
+        let tnw_templates_url =
+            format!("https://api.github.com/repos/the-nix-way/dev-templates/contents");
+        
+        let client = reqwest::blocking::Client::new();
+        let response = client
+            .get(&tnw_templates_url)
+            .header("User-Agent", "drk-nix-plugin")
+            .send()?;
+        
+        if !response.status().is_success() {
+            anyhow::bail!(
+                "{} {}{}",
+                style_error(icon_error()),
+                style_warning("Failed to fetch templates from Github.\n"),
+                style_error(response.status().as_str())
+            );
+        }
+        
+        let items: Vec<GithubItem> = response.json()?;
+        
+        let templates: Vec<Template> = items
+            .into_iter()
+            .filter(|item| item.item_type == "dir" && !item.name.starts_with("."))
+            .map(|item| Template { name: item.name })
+            .collect();
+        
+        Ok(templates)
     }
 }
 
